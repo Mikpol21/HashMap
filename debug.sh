@@ -1,0 +1,1 @@
+gdb a.out --command=gdb.in
