@@ -70,7 +70,7 @@ struct alignas(CACHE_LINE_SIZE) Bucket
         i64x4 emptyIndicesRep = _mm256_setr_epi64x(16, 32, 64, 128);
 
         i64x4 matchingIndices = _mm256_blendv_epi8(zeroes, fullIndicesRep, matchesMask);
-        i64x4 matchingAndEmpty = _mm256_blendv_epi8(zeroes, emptyIndicesRep, matchingIndices);
+        i64x4 matchingAndEmpty = _mm256_blendv_epi8(matchingIndices, emptyIndicesRep, emptySlotsMask);
 
         std::size_t matchingAndEmptyArray[4];
         _mm256_storeu_si256((i64x4 *)matchingAndEmptyArray, matchingAndEmpty);
