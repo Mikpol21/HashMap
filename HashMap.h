@@ -137,14 +137,14 @@ public:
             {
                 slotNo++;
                 if (slotNo == Bucket<Entry>::size)
-                    ptr++;
+                    ptr++, slotNo = 0;
             }
             return (*this);
         }
 
         HashMapIterator operator++(int)
         {
-            const auto returnIt = (*this);
+            auto returnIt = (*this);
             (*this)++;
             return returnIt;
         }
@@ -173,9 +173,9 @@ public:
     HashMapIterator begin() const
     {
         HashMapIterator it{buffer, 0};
-        if (buffer[0].ptrs[0].mask() == SlotStatus::Full)
+        if (it.getMaskedPtr().mask() == SlotStatus::Full)
             return it;
-        return it++;
+        return ++it;
     }
 
     HashMapIterator end() const
@@ -210,7 +210,7 @@ public:
             entryCount++;
             return {it, true};
         }
-        it.getMaskedPtr->second = value.second;
+        it.getMaskedPtr()->second = value.second;
         return {it, false};
     }
 
@@ -241,11 +241,12 @@ private:
             const auto matchingSlots = searchResult.matchesMask();
             const auto emptySlots = searchResult.emptySlotsMask();
 
-            for (std::size_t slotNo = 0; slotNo < 4; slotNo)
-            {
-                if ((1 << slotNo) & matchingSlots && bucketPtr->ptrs[slotNo]->first == key)
-                    return {bucketPtr, slotNo};
-            }
+            if (matchingSlots != 0)
+                for (std::size_t slotNo = 0; slotNo < Bucket<Entry>::size; slotNo)
+                {
+                    if (((1 << slotNo) & matchingSlots) && bucketPtr->ptrs[slotNo]->first == key)
+                        return {bucketPtr, slotNo};
+                }
 
             if (emptySlots != 0)
                 return {bucketPtr, std::countr_zero(emptySlots)};
