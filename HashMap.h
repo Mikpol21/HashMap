@@ -92,7 +92,7 @@ struct alignas(CACHE_LINE_SIZE) Bucket
     }
 };
 
-template <typename K, typename V>
+template <typename K, typename V, bool uniqueHash>
 struct HashMapImpl
 {
     using Entry = std::pair<K, V>;
@@ -246,25 +246,44 @@ struct HashMapImpl
     }
 
 private:
+    enum class FindMode
+    {
+        FirstEmpty,
+        FirstMatchOrElseEmpty
+    };
+
     HashMapIterator getMatchOrElseFirstEmpty(const std::size_t hash, const K &key) const
     {
         const std::size_t startIdx = hash & (capacity - 1);
+        __builtin_prefetch(buffer + startIdx);
+
         for (std::size_t offset = 0; offset < capacity; offset++)
         {
             Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & (capacity - 1));
+            __builtin_prefetch(bucketPtr + 1);
+
             const auto searchResult = bucketPtr->searchSIMD(hash);
             const auto matchingSlots = searchResult.matchesMask();
             const auto emptySlots = searchResult.emptySlotsMask();
 
             if (matchingSlots != 0)
-                for (std::size_t slotNo = 0; slotNo < Bucket<Entry>::size; slotNo++)
+            {
+                if constexpr (!uniqueHash)
                 {
-                    if (((1 << slotNo) & matchingSlots) && bucketPtr->ptrs[slotNo]->first == key)
-                        return {bucketPtr, buffer + capacity, slotNo};
+                    // Hash not unique, hence we have to verify each match by comparing keys
+                    for (std::size_t slotNo = 0; slotNo < Bucket<Entry>::size; slotNo++)
+                        if (((1 << slotNo) & matchingSlots) && bucketPtr->ptrs[slotNo]->first == key)
+                            return {bucketPtr, buffer + capacity, slotNo};
                 }
+                else
+                {
+                    // Hash is unique, thus we simply return the slotNo
+                    return {bucketPtr, buffer + capacity, static_cast<std::size_t>(std::countr_zero(matchingSlots))};
+                }
+            }
 
             if (emptySlots != 0)
-                return {bucketPtr, buffer + capacity, std::countr_zero(emptySlots)};
+                return {bucketPtr, buffer + capacity, static_cast<std::size_t>(std::countr_zero(emptySlots))};
         }
         return end();
     }
@@ -275,11 +294,12 @@ private:
         for (std::size_t offset = 0; offset < capacity; offset++)
         {
             Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & (capacity - 1));
+            __builtin_prefetch(bucketPtr + 1);
             const auto searchResult = bucketPtr->searchSIMD(hash);
             const auto emptySlots = searchResult.emptySlotsMask();
 
             if (emptySlots != 0)
-                return {bucketPtr, buffer + capacity, std::countr_zero(emptySlots)};
+                return {bucketPtr, buffer + capacity, static_cast<std::size_t>(std::countr_zero(emptySlots))};
         }
         return end();
     }
@@ -288,14 +308,16 @@ private:
 template <typename K, typename V>
 class HashMap
 {
-    using HashMapIterator = HashMapImpl<K, V>::HashMapIterator;
-    using Entry = HashMapImpl<K, V>::Entry;
-    HashMapImpl<K, V> impl;
+    static constexpr bool uniqueHash = std::is_integral<K>::value;
+    using MapImpl = HashMapImpl<K, V, uniqueHash>;
+    using HashMapIterator = MapImpl::HashMapIterator;
+    using Entry = MapImpl::Entry;
+    MapImpl impl;
 
     void resize()
     {
         std::size_t newCapacity = impl.capacity << 1;
-        auto newImpl = HashMapImpl<K, V>(newCapacity);
+        auto newImpl = MapImpl(newCapacity);
         auto it = impl.begin();
         while (it != impl.end())
         {
@@ -307,7 +329,7 @@ class HashMap
     }
 
 public:
-    HashMap() : impl{HashMapImpl<K, V>(16)} {}
+    HashMap() : impl{MapImpl(16)} {}
 
     HashMapIterator begin() const
     {
@@ -344,7 +366,7 @@ public:
     template <typename EntryRefRef>
     std::pair<HashMapIterator, bool> insert(Entry &&value)
     {
-        if (impl.entryCount * 2 > impl.capacity) [[unlikely]]
+        if (impl.entryCount * 3 > impl.capacity * Bucket<Entry>::size) [[unlikely]]
             resize();
         return impl.insert(std::move(value));
     }
@@ -372,14 +394,14 @@ public:
 
     HashMap(HashMap &&other) : impl{other.impl}
     {
-        other.impl = HashMapImpl<K, V>();
+        other.impl = MapImpl();
     }
 
     HashMap &operator=(HashMap &&other)
     {
         freeUpMemory();
         impl = other.impl;
-        other.impl = HashMapImpl<K, V>();
+        other.impl = MapImpl();
     }
 
 private:

@@ -3,3 +3,4 @@ assembly.txt
 test
 benchmark
 .vscode
+perf*

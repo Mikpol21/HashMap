@@ -57,13 +57,35 @@ static void BM_insert_map(benchmark::State &state)
     }
 }
 
-template <typename Map, int mapSize, int keyOffset, int maxValue = (1 << 30)>
+enum class FindSpec
+{
+    Hit,
+    Miss,
+    Fifty_Fifty
+};
+
+int toKeyOffset(FindSpec spec, int mapSize)
+{
+    switch (spec)
+    {
+    case FindSpec::Hit:
+        return 0;
+    case FindSpec::Miss:
+        return mapSize;
+    case FindSpec::Fifty_Fifty:
+        return mapSize / 2;
+    }
+    return 0;
+}
+
+template <typename Map, int mapSize, FindSpec spec, int maxValue = (1 << 30)>
 static void BM_find(benchmark::State &state)
 {
     Map map;
     for (int i = 0; i < mapSize; i++)
         map.insert(std::make_pair(i, rand() % maxValue));
 
+    const int keyOffset = toKeyOffset(spec, mapSize);
     for (auto _ : state)
     {
         int key = keyOffset + rand() % mapSize;
@@ -71,24 +93,60 @@ static void BM_find(benchmark::State &state)
     }
 }
 
+template <typename Map, int mapSize, FindSpec spec, int maxValue = (1 << 30)>
+static void BM_find_string(benchmark::State &state)
+{
+    Map map;
+    for (int i = 0; i < mapSize; i++)
+        map.insert(std::make_pair(std::to_string(i), rand() % maxValue));
+
+    const int keyOffset = toKeyOffset(spec, mapSize);
+    for (auto _ : state)
+    {
+        int keyInt = keyOffset + rand() % mapSize;
+        auto key = std::to_string(keyInt);
+        benchmark::DoNotOptimize(map.find(key));
+    }
+}
+
 // Register the function as a benchmark
-BENCHMARK(BM_search);
-BENCHMARK(BM_searchSimd);
-BENCHMARK(BM_insert_map<HashMap<int, int>>);
-BENCHMARK(BM_insert_map<std::unordered_map<int, int>>);
+// BENCHMARK(BM_search);
+// BENCHMARK(BM_searchSimd);
+// BENCHMARK(BM_insert_map<HashMap<int, int>>);
+// BENCHMARK(BM_insert_map<std::unordered_map<int, int>>);
 
-#define test_find(size)                                           \
-    BENCHMARK(BM_find<HashMap<int, int>, size, 0>);               \
-    BENCHMARK(BM_find<std::unordered_map<int, int>, size, 0>);    \
-    BENCHMARK(BM_find<HashMap<int, int>, size, size>);            \
-    BENCHMARK(BM_find<std::unordered_map<int, int>, size, size>); \
-    BENCHMARK(BM_find<HashMap<int, int>, size, size / 2>);        \
-    BENCHMARK(BM_find<std::unordered_map<int, int>, size, size / 2>);
+#define test_find(map, size)                       \
+    BENCHMARK(BM_find<map, size, FindSpec::Hit>);  \
+    BENCHMARK(BM_find<map, size, FindSpec::Miss>); \
+    BENCHMARK(BM_find<map, size, FindSpec::Fifty_Fifty>);
 
-constexpr int mediumSize = 1000;
-constexpr int largeSize = 100000;
-test_find(mediumSize);
-test_find(largeSize);
+constexpr int mediumSize = (1 << 10);
+constexpr int largeSize = (1 << 17);
+constexpr int hugeSize = (1 << 20);
+using MyMap = HashMap<int, int>;
+using STLMap = std::unordered_map<int, int>;
+
+test_find(MyMap, mediumSize);
+test_find(STLMap, mediumSize);
+test_find(MyMap, largeSize);
+test_find(STLMap, largeSize);
+test_find(MyMap, hugeSize);
+test_find(STLMap, hugeSize);
+
+#define test_find_str(map, size)                          \
+    BENCHMARK(BM_find_string<map, size, FindSpec::Hit>);  \
+    BENCHMARK(BM_find_string<map, size, FindSpec::Miss>); \
+    BENCHMARK(BM_find_string<map, size, FindSpec::Fifty_Fifty>);
+
+using MyMapStr = HashMap<std::string, int>;
+using STLMapStr = std::unordered_map<std::string, int>;
+
+test_find_str(MyMapStr, mediumSize);
+test_find_str(STLMapStr, mediumSize);
+test_find_str(MyMapStr, largeSize);
+test_find_str(STLMapStr, largeSize);
+test_find_str(MyMapStr, hugeSize);
+test_find_str(STLMapStr, hugeSize);
 
 // Run the benchmark
 BENCHMARK_MAIN();
