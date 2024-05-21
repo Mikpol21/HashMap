@@ -93,31 +93,30 @@ struct alignas(CACHE_LINE_SIZE) Bucket
 };
 
 template <typename K, typename V>
-class HashMapImpl
+struct HashMapImpl
 {
     using Entry = std::pair<K, V>;
     using SlotStatus = typename Bucket<Entry>::SlotStatus;
     using MaskedPtr = MaskedPointer<Entry, Bucket<Entry>::bitsForSlotStatus>;
 
     static constexpr auto hashFn = std::hash<K>();
-    Bucket<Entry> *const buffer = nullptr;
-    const std::size_t capacity;
+    Bucket<Entry> *buffer = nullptr;
+    std::size_t capacity;
     std::size_t entryCount;
 
-public:
-    class HashMapIterator
+    struct HashMapIterator
     {
         Bucket<Entry> *ptr{nullptr};
+        Bucket<Entry> *end{nullptr};
         std::size_t slotNo{0};
 
-    public:
         using iterator_category = std::forward_iterator_tag;
         // using difference_type = std::ptrdiff_t;
         using value_type = Entry;
         using pointer = Entry *;   // or also value_type*
         using reference = Entry &; // or also value_type&
 
-        HashMapIterator(Bucket<Entry> *ptr, std::size_t slotNo) : ptr{ptr}, slotNo{slotNo} {}
+        HashMapIterator(Bucket<Entry> *ptr, Bucket<Entry> *end, std::size_t slotNo) : ptr{ptr}, slotNo{slotNo}, end{end} {}
 
         HashMapIterator() : ptr{nullptr}, slotNo{0} {}
 
@@ -133,30 +132,31 @@ public:
 
         HashMapIterator &operator++()
         {
-            while (ptr->ptrs[slotNo].mask() != SlotStatus::Full)
+            do
             {
                 slotNo++;
                 if (slotNo == Bucket<Entry>::size)
                     ptr++, slotNo = 0;
-            }
+            } while (ptr != end && ptr->ptrs[slotNo].mask() != SlotStatus::Full);
+
             return (*this);
         }
 
         HashMapIterator operator++(int)
         {
             auto returnIt = (*this);
-            (*this)++;
+            ++(*this);
             return returnIt;
         }
 
         friend bool operator==(const HashMapIterator &a, const HashMapIterator &b)
         {
-            return a.ptr == b.ptr && a.slotNo == b.slotNo;
+            return a.ptr == b.ptr && a.slotNo == b.slotNo && a.end == b.end;
         }
 
         friend bool operator!=(const HashMapIterator &a, const HashMapIterator &b)
         {
-            return a.ptr != b.ptr || a.slotNo != b.slotNo;
+            return a.ptr != b.ptr || a.slotNo != b.slotNo || a.end != b.end;
         }
 
         MaskedPtr &getMaskedPtr() const
@@ -172,7 +172,7 @@ public:
 
     HashMapIterator begin() const
     {
-        HashMapIterator it{buffer, 0};
+        HashMapIterator it{buffer, buffer + capacity, 0};
         if (it.getMaskedPtr().mask() == SlotStatus::Full)
             return it;
         return ++it;
@@ -180,7 +180,7 @@ public:
 
     HashMapIterator end() const
     {
-        return {buffer + capacity, 0};
+        return {buffer + capacity, buffer + capacity, 0};
     }
 
     HashMapImpl(std::size_t capacity) : capacity{capacity}, buffer{new Bucket<Entry>[capacity]}, entryCount{0} {}
@@ -199,25 +199,40 @@ public:
     template <typename EntryRefRef>
     std::pair<HashMapIterator, bool> insert(EntryRefRef &&value)
     {
-        const auto &key = value.key;
+        const auto &key = value.first;
         const std::size_t hash = hashFn(key);
         auto it = getMatchOrElseFirstEmpty(hash, key);
         if (it.getMaskedPtr().mask() == SlotStatus::Empty)
         {
-            Bucket<Entry> &bucket = *(it.getMaskedPtr());
+            Bucket<Entry> &bucket = *(it.ptr);
             bucket.hashes[it.slotNo] = hash;
-            bucket.ptrs[it.slotNo] = MaskedPointer(new Entry(std::forward(value)), SlotStatus::Full);
+            bucket.ptrs[it.slotNo] = MaskedPtr(new Entry(value), SlotStatus::Full);
             entryCount++;
             return {it, true};
         }
-        it.getMaskedPtr()->second = value.second;
+        // it.getMaskedPtr()->second = value.second;
         return {it, false};
+    }
+
+    V &operator[](const K &key)
+    {
+        const std::size_t hash = hashFn(key);
+        auto it = getMatchOrElseFirstEmpty(hash, key);
+        if (it.getMaskedPtr().mask() == SlotStatus::Empty)
+        {
+            Bucket<Entry> &bucket = *(it.ptr);
+            bucket.hashes[it.slotNo] = hash;
+            bucket.ptrs[it.slotNo] = MaskedPtr(new Entry(std::make_pair(key, {}), SlotStatus::Full));
+            entryCount++;
+            return bucket.ptrs[it.slotNo]->second;
+        }
+        // it.getMaskedPtr()->second = value.second;
+        return it->second;
     }
 
     HashMapIterator erase(HashMapIterator it)
     {
         auto &maskedPtr = it.getMaskedPtr();
-        entryCount -= maskedPtr.mask() == SlotStatus::Full;
         delete maskedPtr.get();
         maskedPtr = MaskedPtr(nullptr, SlotStatus::Tombstone);
         return (++it);
@@ -236,20 +251,20 @@ private:
         const std::size_t startIdx = hash & (capacity - 1);
         for (std::size_t offset = 0; offset < capacity; offset++)
         {
-            Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & capacity);
+            Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & (capacity - 1));
             const auto searchResult = bucketPtr->searchSIMD(hash);
             const auto matchingSlots = searchResult.matchesMask();
             const auto emptySlots = searchResult.emptySlotsMask();
 
             if (matchingSlots != 0)
-                for (std::size_t slotNo = 0; slotNo < Bucket<Entry>::size; slotNo)
+                for (std::size_t slotNo = 0; slotNo < Bucket<Entry>::size; slotNo++)
                 {
                     if (((1 << slotNo) & matchingSlots) && bucketPtr->ptrs[slotNo]->first == key)
-                        return {bucketPtr, slotNo};
+                        return {bucketPtr, buffer + capacity, slotNo};
                 }
 
             if (emptySlots != 0)
-                return {bucketPtr, std::countr_zero(emptySlots)};
+                return {bucketPtr, buffer + capacity, std::countr_zero(emptySlots)};
         }
         return end();
     }
@@ -259,12 +274,12 @@ private:
         const std::size_t startIdx = hash & (capacity - 1);
         for (std::size_t offset = 0; offset < capacity; offset++)
         {
-            Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & capacity);
+            Bucket<Entry> *bucketPtr = buffer + ((startIdx + offset) & (capacity - 1));
             const auto searchResult = bucketPtr->searchSIMD(hash);
             const auto emptySlots = searchResult.emptySlotsMask();
 
             if (emptySlots != 0)
-                return {bucketPtr, std::countr_zero(emptySlots)};
+                return {bucketPtr, buffer + capacity, std::countr_zero(emptySlots)};
         }
         return end();
     }
@@ -274,12 +289,13 @@ template <typename K, typename V>
 class HashMap
 {
     using HashMapIterator = HashMapImpl<K, V>::HashMapIterator;
-    HashMapImpl<K, V> impl{16};
+    using Entry = HashMapImpl<K, V>::Entry;
+    HashMapImpl<K, V> impl;
 
     void resize()
     {
         std::size_t newCapacity = impl.capacity << 1;
-        auto newImpl = HashMapImpl(newCapacity);
+        auto newImpl = HashMapImpl<K, V>(newCapacity);
         auto it = impl.begin();
         while (it != impl.end())
         {
@@ -291,7 +307,7 @@ class HashMap
     }
 
 public:
-    HashMap() {}
+    HashMap() : impl{HashMapImpl<K, V>(16)} {}
 
     HashMapIterator begin() const
     {
@@ -308,17 +324,42 @@ public:
         return impl.find(key);
     }
 
-    template <typename EntryRefRef>
-    std::pair<HashMapIterator, bool> insert(EntryRefRef &&value)
+    V &operator[](const K &key)
     {
-        if (unlikely(impl.entryCount * 2 > impl.capacity))
+        return impl[key];
+    }
+
+    const V &operator[](const K &key) const
+    {
+        return impl[key];
+    }
+
+    std::pair<HashMapIterator, bool> insert(const Entry &value)
+    {
+        if (impl.entryCount * 2 > impl.capacity) [[unlikely]]
             resize();
-        return insert(std::forward(value));
+        return impl.insert(value);
+    }
+
+    template <typename EntryRefRef>
+    std::pair<HashMapIterator, bool> insert(Entry &&value)
+    {
+        if (impl.entryCount * 2 > impl.capacity) [[unlikely]]
+            resize();
+        return impl.insert(std::move(value));
     }
 
     HashMapIterator erase(HashMapIterator it)
     {
-        return erase(it);
+        return impl.erase(it);
+    }
+
+    HashMapIterator erase(const K &key)
+    {
+        auto it = find(key);
+        if (it != end())
+            return erase(it);
+        return it;
     }
 
     ~HashMap()
@@ -345,7 +386,8 @@ private:
     void freeUpMemory()
     {
         auto it = impl.begin();
-        while (it != impl.end())
+        auto end = impl.end();
+        while (it != end)
         {
             delete it.getMaskedPtr().get();
             it++;

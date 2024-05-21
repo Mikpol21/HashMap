@@ -1,4 +1,4 @@
-CXXFLAGS="-std=c++20 -O3 -g -march=native -fno-omit-frame-pointer"
+CXXFLAGS="-std=c++20 -g -O3 -march=native -fno-omit-frame-pointer"
 
 g++ $CXXFLAGS main.cpp
 
