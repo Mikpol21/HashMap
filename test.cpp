@@ -83,6 +83,13 @@ TEST(HashMap, vsUnordredMap)
         }
         }
     }
+
+    for (auto &[key, value] : myMap)
+    {
+        auto it = stlMap.find(key);
+        ASSERT_NE(it, stlMap.end());
+        ASSERT_EQ(it->second, value);
+    }
 }
 
 TEST(BucketSearch, SearchExistinng)
