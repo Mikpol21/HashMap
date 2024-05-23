@@ -1,6 +1,6 @@
 #include <iostream>
 #include <cassert>
-#include "HashMap.h"
+#include "src/HashMap.h"
 
 int main()
 {

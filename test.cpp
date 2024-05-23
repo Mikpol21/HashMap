@@ -1,6 +1,6 @@
 #include <unordered_map>
 #include "gtest/gtest.h"
-#include "HashMap.h"
+#include "src/HashMap.h"
 
 constexpr int maxTestCases = 100000;
 
