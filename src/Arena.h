@@ -1,3 +1,4 @@
+#pragma once
 #include <array>
 #include <sys/mman.h>
 #include <cassert>
@@ -6,7 +7,7 @@
 template <typename T>
 struct Page
 {
-    static constexpr payloadSize = (PAGE_SIZE - sizeof(std::size_t) - sizeof(Page *)) / sizeof(T);
+    static constexpr int payloadSize = (PAGE_SIZE - sizeof(std::size_t) - sizeof(Page *)) / sizeof(T);
     // idk if std::array calls T's constructor on element of the array; I hope not
     std::array<T, payloadSize> data;
     Page *prevPage;
@@ -30,28 +31,39 @@ struct Page
 template <typename T>
 class ArenaAllocator
 {
-    Page *topOfPageStack;
+    Page<T> *topOfPageStack;
 
-    Page *allocateNewPage()
+    Page<T> *allocateNewPage()
     {
         auto rawPagePtr = mmap(nullptr, PAGE_SIZE, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
         assert(rawPagePtr != MAP_FAILED);
-        return static_cast<Page *> rawPagePtr;
+        return static_cast<Page<T> *>(rawPagePtr);
     }
 
 public:
+    ArenaAllocator()
+    {
+        topOfPageStack = allocateNewPage();
+    }
+
     T *allocate(std::size_t n)
     {
         if (n > Page<T>::payloadSize) [[unlikely]]
             throw std::exception();
+
         auto ptr = topOfPageStack->tryAllocate(n);
-        if (ptr == nullptr) [[unlikely]]
-        {
-            auto newPage = allocateNewPage();
-            newPage->prevPage = topOfPageStack;
-            topOfPageStack = newPage;
-            return newPage->tryAllocate(n);
-        }
+        if (ptr != nullptr) [[likely]]
+
+            return ptr;
+        auto newPage = allocateNewPage();
+        newPage->prevPage = topOfPageStack;
+        topOfPageStack = newPage;
+        return newPage->tryAllocate(n);
+    }
+
+    void deallocate(T *ptr, std::size_t n)
+    {
+        // no-op
     }
 
     ~ArenaAllocator()

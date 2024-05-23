@@ -3,6 +3,7 @@
 #include <immintrin.h>
 #include <bit>
 #include "MaskedPointer.h"
+#include "Arena.h"
 
 #define CACHE_LINE_SIZE 64
 
@@ -221,8 +222,8 @@ struct HashMapImpl
         return it;
     }
 
-    template <typename EntryRefRef>
-    std::pair<HashMapIterator, bool> insert(EntryRefRef &&value)
+    template <typename EntryRef, typename Allocator>
+    std::pair<HashMapIterator, bool> insert(EntryRef value, Allocator &allocator)
     {
         const auto &key = value.first;
         const std::size_t hash = hashFn(key);
@@ -231,7 +232,8 @@ struct HashMapImpl
         {
             Bucket<Entry> &bucket = *(it.ptr);
             bucket.hashes[it.slotNo] = hash;
-            bucket.ptrs[it.slotNo] = MaskedPtr(new Entry(value), SlotStatus::Full);
+            auto entryPtr = new (allocator.allocate(1)) Entry(value);
+            bucket.ptrs[it.slotNo] = MaskedPtr(entryPtr, SlotStatus::Full);
             entryCount++;
             return {it, true};
         }
@@ -255,12 +257,12 @@ struct HashMapImpl
         return it->second;
     }
 
-    HashMapIterator erase(HashMapIterator it)
+    template <typename Allocator>
+    HashMapIterator erase(HashMapIterator it, Allocator &allocator)
     {
         auto &maskedPtr = it.getMaskedPtr();
         auto bucket = *(it.ptr);
-
-        delete maskedPtr.get();
+        allocator.deallocate(maskedPtr.get(), 1);
         bool bucketHasEmptySlots = bucket.emptySlotsMask() > 0;
         auto newSlotStatus = bucketHasEmptySlots ? SlotStatus::Empty : SlotStatus::Tombstone;
         maskedPtr = MaskedPtr(nullptr, newSlotStatus);
@@ -334,7 +336,7 @@ private:
     }
 };
 
-template <typename K, typename V>
+template <typename K, typename V, typename Allocator = ArenaAllocator<std::pair<K, V>>>
 class HashMap
 {
     static constexpr bool uniqueHash = std::is_integral<K>::value;
@@ -342,6 +344,7 @@ class HashMap
     using HashMapIterator = MapImpl::HashMapIterator;
     using Entry = MapImpl::Entry;
     MapImpl impl;
+    Allocator allocator = Allocator();
 
     void resize()
     {
@@ -389,27 +392,26 @@ public:
     {
         if (impl.entryCount * 2 > impl.capacity) [[unlikely]]
             resize();
-        return impl.insert(value);
+        return impl.insert(value, allocator);
     }
 
-    template <typename EntryRefRef>
     std::pair<HashMapIterator, bool> insert(Entry &&value)
     {
         if (impl.entryCount * 3 > impl.capacity * Bucket<Entry>::size) [[unlikely]]
             resize();
-        return impl.insert(std::move(value));
+        return impl.insert(std::move(value), allocator);
     }
 
     HashMapIterator erase(HashMapIterator it)
     {
-        return impl.erase(it);
+        return impl.erase(it, allocator);
     }
 
     HashMapIterator erase(const K &key)
     {
         auto it = find(key);
         if (it != end())
-            return erase(it);
+            return impl.erase(it, allocator);
         return it;
     }
 
@@ -440,7 +442,7 @@ private:
         auto end = impl.end();
         while (it != end)
         {
-            delete it.getMaskedPtr().get();
+            allocator.deallocate(it.getMaskedPtr().get(), 1);
             it++;
         }
         delete impl.buffer;

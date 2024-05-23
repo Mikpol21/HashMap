@@ -1,6 +1,7 @@
 #include <unordered_map>
 #include "gtest/gtest.h"
 #include "src/HashMap.h"
+#include "src/Arena.h"
 
 constexpr int maxTestCases = 100000;
 
@@ -135,4 +136,31 @@ TEST(BucketSearch, SearchForNonExisting)
         auto hash = rand();
         ASSERT_EQ(b.searchSIMD(hash), b.search(hash));
     }
+}
+
+int myIntCounter = 0;
+
+struct MyInt
+{
+    int x;
+    MyInt() : x{2}
+    {
+        myIntCounter++;
+    }
+};
+
+TEST(Arena, noConstructorTrigger)
+{
+    ArenaAllocator<MyInt> arena;
+    auto myIntPtr = arena.allocate(1);
+    // allocated at the page start
+    ASSERT_EQ(reinterpret_cast<std::size_t>(myIntPtr) % PAGE_SIZE, 0);
+    // No constructors triggered
+    ASSERT_EQ(myIntCounter, 0);
+    // Kernel provided 0-filled page
+    ASSERT_EQ(myIntPtr->x, 0);
+    myIntPtr = new (myIntPtr) MyInt();
+
+    ASSERT_EQ(myIntCounter, 1);
+    ASSERT_EQ(myIntPtr->x, 2);
 }
