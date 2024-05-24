@@ -27,7 +27,7 @@ TEST(HashMap, Delete)
     auto [it, flag] = map.insert(std::make_pair(10, 5));
     ASSERT_NE(it, map.end());
     ASSERT_EQ(flag, true);
-    auto it2 = map.erase(10);
+    map.erase(10);
     ASSERT_EQ(map.find(10), map.end());
     auto [it3, flag2] = map.insert(std::make_pair(10, 6));
     ASSERT_EQ(flag2, true);
@@ -98,12 +98,12 @@ TEST(BucketSearch, SearchExistinng)
     for (int testCases = 0; testCases < maxTestCases; testCases++)
     {
         Bucket<int> b;
-        for (int i = 0; i < Bucket<int>::size; i++)
+        for (std::size_t i = 0; i < Bucket<int>::size; i++)
         {
             b.hashes[i] = rand();
             b.ptrs[i] = MaskedPointer<int, 2>(nullptr, 1);
         }
-        for (int i = 0; i < Bucket<int>::size; i++)
+        for (std::size_t i = 0; i < Bucket<int>::size; i++)
             ASSERT_EQ(b.searchSIMD(b.hashes[i]), b.search(b.hashes[i]));
     }
 }
@@ -113,12 +113,12 @@ TEST(BucketSearch, SearchNonFullEntries)
     for (int testCases = 0; testCases < maxTestCases; testCases++)
     {
         Bucket<int> b;
-        for (int i = 0; i < Bucket<int>::size; i++)
+        for (std::size_t i = 0; i < Bucket<int>::size; i++)
         {
             b.hashes[i] = rand();
             b.ptrs[i] = MaskedPointer<int, 2>(nullptr, rand() % 3);
         }
-        for (int i = 0; i < Bucket<int>::size; i++)
+        for (std::size_t i = 0; i < Bucket<int>::size; i++)
             ASSERT_EQ(b.searchSIMD(b.hashes[i]), b.search(b.hashes[i]));
     }
 }
@@ -128,7 +128,7 @@ TEST(BucketSearch, SearchForNonExisting)
     for (int testCases = 0; testCases < maxTestCases; testCases++)
     {
         Bucket<int> b;
-        for (int i = 0; i < Bucket<int>::size; i++)
+        for (std::size_t i = 0; i < Bucket<int>::size; i++)
         {
             b.hashes[i] = rand();
             b.ptrs[i] = MaskedPointer<int, 2>(nullptr, rand() % 3);

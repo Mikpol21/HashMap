@@ -1,4 +1,13 @@
-CXXFLAGS="-std=c++20 -g -O3 -march=native -fno-omit-frame-pointer"
+CXXFLAGS="-std=c++20 -g -O3 -march=native -fno-omit-frame-pointer -Wall -Wextra -pedantic"
+
+CXXDEBUG="${CXXFLAGS} -fsanitize=address -fsanitize=undefined -fsanitize=leak"
+
+if [[ $1 == "-d" ]];
+then
+    CXXFLAGS="${CXXDEBUG}"
+fi
+
+echo "${CXXFLAGS}"
 
 g++ $CXXFLAGS main.cpp
 

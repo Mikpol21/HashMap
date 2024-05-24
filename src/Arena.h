@@ -61,7 +61,7 @@ public:
         return newPage->tryAllocate(n);
     }
 
-    void deallocate(T *ptr, std::size_t n)
+    void deallocate([[maybe_unused]] T *ptr, [[maybe_unused]] std::size_t n)
     {
         // no-op
     }

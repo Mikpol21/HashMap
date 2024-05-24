@@ -9,14 +9,14 @@ auto bucket = randomBucket();
 
 int numOfIters = (1 << 0);
 
-static void BM_searchSimd(benchmark::State &state)
+[[maybe_unused]] static void BM_searchSimd(benchmark::State &state)
 {
     // Perform setup here
     std::vector<std::size_t> hashes;
     hashes.reserve(8);
-    for (int i = 0; i < bucket.size; i++)
+    for (std::size_t i = 0; i < bucket.size; i++)
         hashes[i] = bucket.hashes[i];
-    for (int i = 4; i < 8; i++)
+    for (std::size_t i = 4; i < 8; i++)
         hashes[i] = rand();
     std::random_shuffle(hashes.begin(), hashes.end());
     for (auto _ : state)
@@ -27,14 +27,14 @@ static void BM_searchSimd(benchmark::State &state)
     }
 }
 
-static void BM_search(benchmark::State &state)
+[[maybe_unused]] static void BM_search(benchmark::State &state)
 {
     // Perform setup here
     std::vector<std::size_t> hashes;
     hashes.reserve(8);
-    for (int i = 0; i < bucket.size; i++)
+    for (std::size_t i = 0; i < bucket.size; i++)
         hashes[i] = bucket.hashes[i];
-    for (int i = 4; i < 8; i++)
+    for (std::size_t i = 4; i < 8; i++)
         hashes[i] = rand();
     std::random_shuffle(hashes.begin(), hashes.end());
     for (auto _ : state)

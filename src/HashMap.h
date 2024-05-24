@@ -19,7 +19,6 @@ struct alignas(CACHE_LINE_SIZE) Bucket
     };
     static constexpr int bitsForSlotStatus = 2;
     static constexpr std::size_t size = (CACHE_LINE_SIZE / 2) / sizeof(std::size_t);
-    ;
 
     std::size_t hashes[size];
     MaskedPointer<T, bitsForSlotStatus> ptrs[size];
@@ -206,7 +205,7 @@ struct HashMapImpl
         return {buffer + capacity - 1, 3};
     }
 
-    HashMapImpl(std::size_t capacity) : capacity{capacity}, buffer{new Bucket<Entry>[capacity]}, entryCount{0}
+    HashMapImpl(std::size_t capacity) : buffer{new Bucket<Entry>[capacity]}, capacity{capacity}, entryCount{0}
     {
         buffer[capacity - 1].ptrs[Bucket<Entry>::size - 1] = MaskedPtr(nullptr, SlotStatus::Sentinel);
     }
@@ -356,7 +355,7 @@ class HashMap
             newImpl.relocateSlot(it.getHash(), it.getMaskedPtr());
             it++;
         }
-        delete impl.buffer;
+        delete[] impl.buffer;
         impl = newImpl;
     }
 
@@ -445,14 +444,14 @@ private:
             allocator.deallocate(it.getMaskedPtr().get(), 1);
             it++;
         }
-        delete impl.buffer;
+        delete[] impl.buffer;
     }
 };
 
 Bucket<int> randomBucket()
 {
     Bucket<int> b;
-    for (int i = 0; i < Bucket<int>::size; i++)
+    for (std::size_t i = 0; i < Bucket<int>::size; i++)
     {
         b.hashes[i] = rand();
         b.ptrs[i] = MaskedPointer<int, 2>(nullptr, 1);
