@@ -59,8 +59,8 @@ static void BM_insert_map(benchmark::State &state)
 
 enum class FindSpec
 {
-    Hit,
-    Miss,
+    AlwaysHit,
+    AlwaysMiss,
     Fifty_Fifty
 };
 
@@ -68,9 +68,9 @@ int toKeyOffset(FindSpec spec, int mapSize)
 {
     switch (spec)
     {
-    case FindSpec::Hit:
+    case FindSpec::AlwaysHit:
         return 0;
-    case FindSpec::Miss:
+    case FindSpec::AlwaysMiss:
         return mapSize;
     case FindSpec::Fifty_Fifty:
         return mapSize / 2;
@@ -109,44 +109,31 @@ static void BM_find_string(benchmark::State &state)
     }
 }
 
-// Register the function as a benchmark
-// BENCHMARK(BM_search);
-// BENCHMARK(BM_searchSimd);
-// BENCHMARK(BM_insert_map<HashMap<int, int>>);
-// BENCHMARK(BM_insert_map<std::unordered_map<int, int>>);
-
-#define test_find(map, size)                       \
-    BENCHMARK(BM_find<map, size, FindSpec::Hit>);  \
-    BENCHMARK(BM_find<map, size, FindSpec::Miss>); \
-    BENCHMARK(BM_find<map, size, FindSpec::Fifty_Fifty>);
-
-constexpr int mediumSize = (1 << 10);
-constexpr int largeSize = (1 << 17);
-constexpr int hugeSize = (1 << 20);
 using MyMap = HashMap<int, int>;
 using STLMap = std::unordered_map<int, int>;
-
-test_find(MyMap, mediumSize);
-test_find(STLMap, mediumSize);
-test_find(MyMap, largeSize);
-test_find(STLMap, largeSize);
-test_find(MyMap, hugeSize);
-test_find(STLMap, hugeSize);
-
-#define test_find_str(map, size)                          \
-    BENCHMARK(BM_find_string<map, size, FindSpec::Hit>);  \
-    BENCHMARK(BM_find_string<map, size, FindSpec::Miss>); \
-    BENCHMARK(BM_find_string<map, size, FindSpec::Fifty_Fifty>);
-
+using MyMapSTLAlloc = HashMap<int, int, std::allocator<std::pair<int, int>>>;
 using MyMapStr = HashMap<std::string, int>;
 using STLMapStr = std::unordered_map<std::string, int>;
 
-test_find_str(MyMapStr, mediumSize);
-test_find_str(STLMapStr, mediumSize);
-test_find_str(MyMapStr, largeSize);
-test_find_str(STLMapStr, largeSize);
-test_find_str(MyMapStr, hugeSize);
-test_find_str(STLMapStr, hugeSize);
+#define test_find(map, size)                             \
+    BENCHMARK(BM_find<map, size, FindSpec::AlwaysHit>);  \
+    BENCHMARK(BM_find<map, size, FindSpec::AlwaysMiss>); \
+    BENCHMARK(BM_find<map, size, FindSpec::Fifty_Fifty>);
+
+#define test_find_across_size(map) \
+    test_find(map, 1024);          \
+    test_find(map, 32768);         \
+    test_find(map, 1048576);       \
+    test_find(map, 33554432)
+
+#define test_find_str(map, size)                                \
+    BENCHMARK(BM_find_string<map, size, FindSpec::AlwaysHit>);  \
+    BENCHMARK(BM_find_string<map, size, FindSpec::AlwaysMiss>); \
+    BENCHMARK(BM_find_string<map, size, FindSpec::Fifty_Fifty>);
+
+test_find_across_size(MyMap);
+test_find_across_size(MyMapSTLAlloc);
+test_find_across_size(STLMap);
 
 // Run the benchmark
 BENCHMARK_MAIN();

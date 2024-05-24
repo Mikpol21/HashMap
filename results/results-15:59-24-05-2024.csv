@@ -1,0 +1,46 @@
+2024-05-24T15:59:34+01:00
+Running ./benchmark
+Run on (8 X 2864.41 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x4)
+  L1 Instruction 32 KiB (x4)
+  L2 Unified 256 KiB (x4)
+  L3 Unified 8192 KiB (x1)
+Load Average: 1.04, 1.23, 1.17
+name,iterations,real_time,cpu_time,time_unit,bytes_per_second,items_per_second,label,error_occurred,error_message
+"BM_find<MyMap, 1024, FindSpec::AlwaysHit>",57472120,11.9348,11.9337,ns,,,,,
+"BM_find<MyMap, 1024, FindSpec::AlwaysMiss>",54776198,11.399,11.3979,ns,,,,,
+"BM_find<MyMap, 1024, FindSpec::Fifty_Fifty>",41563175,16.6083,16.6072,ns,,,,,
+"BM_find<MyMap, 32768, FindSpec::AlwaysHit>",57994391,11.956,11.9371,ns,,,,,
+"BM_find<MyMap, 32768, FindSpec::AlwaysMiss>",55983754,12.3106,12.2916,ns,,,,,
+"BM_find<MyMap, 32768, FindSpec::Fifty_Fifty>",34639365,20.3192,20.266,ns,,,,,
+"BM_find<MyMap, 1048576, FindSpec::AlwaysHit>",15319141,48.7795,48.6958,ns,,,,,
+"BM_find<MyMap, 1048576, FindSpec::AlwaysMiss>",15325680,45.2594,45.2547,ns,,,,,
+"BM_find<MyMap, 1048576, FindSpec::Fifty_Fifty>",13089394,52.6174,52.6168,ns,,,,,
+"BM_find<MyMap, 33554432, FindSpec::AlwaysHit>",11860177,57.077,56.9836,ns,,,,,
+"BM_find<MyMap, 33554432, FindSpec::AlwaysMiss>",11617474,57.5977,57.5133,ns,,,,,
+"BM_find<MyMap, 33554432, FindSpec::Fifty_Fifty>",9873516,67.8747,67.8045,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1024, FindSpec::AlwaysHit>",61353115,11.7658,11.7656,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1024, FindSpec::AlwaysMiss>",60747395,11.338,11.323,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1024, FindSpec::Fifty_Fifty>",34653489,19.6415,19.6416,ns,,,,,
+"BM_find<MyMapSTLAlloc, 32768, FindSpec::AlwaysHit>",48737317,14.4979,14.4979,ns,,,,,
+"BM_find<MyMapSTLAlloc, 32768, FindSpec::AlwaysMiss>",47012207,14.6375,14.6374,ns,,,,,
+"BM_find<MyMapSTLAlloc, 32768, FindSpec::Fifty_Fifty>",28594340,23.8159,23.8151,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1048576, FindSpec::AlwaysHit>",14517819,47.9741,47.9698,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1048576, FindSpec::AlwaysMiss>",14664189,47.1111,47.102,ns,,,,,
+"BM_find<MyMapSTLAlloc, 1048576, FindSpec::Fifty_Fifty>",12317301,55.8423,55.8413,ns,,,,,
+"BM_find<MyMapSTLAlloc, 33554432, FindSpec::AlwaysHit>",11681049,57.0587,57.0579,ns,,,,,
+"BM_find<MyMapSTLAlloc, 33554432, FindSpec::AlwaysMiss>",11632182,57.9465,57.8522,ns,,,,,
+"BM_find<MyMapSTLAlloc, 33554432, FindSpec::Fifty_Fifty>",9484824,69.1234,69.1064,ns,,,,,
+"BM_find<STLMap, 1024, FindSpec::AlwaysHit>",48566918,14.082,14.0817,ns,,,,,
+"BM_find<STLMap, 1024, FindSpec::AlwaysMiss>",31120514,21.4102,21.4057,ns,,,,,
+"BM_find<STLMap, 1024, FindSpec::Fifty_Fifty>",26681120,25.2179,25.2171,ns,,,,,
+"BM_find<STLMap, 32768, FindSpec::AlwaysHit>",33699382,19.3932,19.3924,ns,,,,,
+"BM_find<STLMap, 32768, FindSpec::AlwaysMiss>",23629447,29.0491,29.0484,ns,,,,,
+"BM_find<STLMap, 32768, FindSpec::Fifty_Fifty>",22815428,30.6082,30.607,ns,,,,,
+"BM_find<STLMap, 1048576, FindSpec::AlwaysHit>",7764023,88.8599,88.8533,ns,,,,,
+"BM_find<STLMap, 1048576, FindSpec::AlwaysMiss>",7933220,86.3536,86.3462,ns,,,,,
+"BM_find<STLMap, 1048576, FindSpec::Fifty_Fifty>",8624350,79.7084,79.6995,ns,,,,,
+"BM_find<STLMap, 33554432, FindSpec::AlwaysHit>",5997662,112.774,112.768,ns,,,,,
+"BM_find<STLMap, 33554432, FindSpec::AlwaysMiss>",6626546,104.119,104.065,ns,,,,,
+"BM_find<STLMap, 33554432, FindSpec::Fifty_Fifty>",7135971,94.0867,94.0804,ns,,,,,
