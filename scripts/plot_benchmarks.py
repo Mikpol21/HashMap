@@ -15,22 +15,22 @@ df = pd.read_csv(filename)
 # Filter out rows with empty 'label' column
 df = df.dropna(subset=['name'])
 
-# Split the 'label' column into separate columns for Map, Size, and FindSpec
-df[['Map', 'Size', 'FindSpec']] = df['name'].str.extract(r'BM_find<(\w+), (\d+), FindSpec::(\w+)>')
+# Split the 'label' column into separate columns for Map, Size, and HitRate
+df[['Map', 'Size', 'HitRate']] = df['name'].str.extract(r'BM_find<(\w+), (\d+), HitRate::(\w+)>')
 
 
 
 # Convert 'Size' column to integer
 df['Size'] = df['Size'].str.extract(r'(\d+)').astype(int)
 
-# Create a separate plot for each FindSpec
-findspecs = df['FindSpec'].unique()
+# Create a separate plot for each HitRate
+findspecs = df['HitRate'].unique()
 
 fig, axs = plt.subplots(len(findspecs), 1, figsize=(10, 5*len(findspecs)), dpi=300)
 
 for i, findspec in enumerate(findspecs):
     # Filter DataFrame for the current FindSpec
-    dfspec = df[df['FindSpec'] == findspec]
+    dfspec = df[df['HitRate'] == findspec]
     
     # Plot for each Map
     maps = dfspec['Map'].unique()
@@ -42,7 +42,7 @@ for i, findspec in enumerate(findspecs):
     # Add labels and title
     axs[i].set_xlabel('Size')
     axs[i].set_ylabel('CPU Time (ns)')
-    axs[i].set_title('CPU Time vs. Size for FindSpec: {}'.format(findspec))
+    axs[i].set_title('HitRate: {}'.format(findspec))
     axs[i].legend()
     axs[i].grid(True)
     axs[i].set_xscale('log')

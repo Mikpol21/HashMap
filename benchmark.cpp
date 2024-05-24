@@ -57,28 +57,28 @@ static void BM_insert_map(benchmark::State &state)
     }
 }
 
-enum class FindSpec
+enum class HitRate
 {
     AlwaysHit,
     AlwaysMiss,
     Fifty_Fifty
 };
 
-int toKeyOffset(FindSpec spec, int mapSize)
+int toKeyOffset(HitRate spec, int mapSize)
 {
     switch (spec)
     {
-    case FindSpec::AlwaysHit:
+    case HitRate::AlwaysHit:
         return 0;
-    case FindSpec::AlwaysMiss:
+    case HitRate::AlwaysMiss:
         return mapSize;
-    case FindSpec::Fifty_Fifty:
+    case HitRate::Fifty_Fifty:
         return mapSize / 2;
     }
     return 0;
 }
 
-template <typename Map, int mapSize, FindSpec spec, int maxValue = (1 << 30)>
+template <typename Map, int mapSize, HitRate spec, int maxValue = (1 << 30)>
 static void BM_find(benchmark::State &state)
 {
     Map map;
@@ -93,7 +93,7 @@ static void BM_find(benchmark::State &state)
     }
 }
 
-template <typename Map, int mapSize, FindSpec spec, int maxValue = (1 << 30)>
+template <typename Map, int mapSize, HitRate spec, int maxValue = (1 << 30)>
 static void BM_find_string(benchmark::State &state)
 {
     Map map;
@@ -115,10 +115,10 @@ using MyMapSTLAlloc = HashMap<int, int, std::allocator<std::pair<int, int>>>;
 using MyMapStr = HashMap<std::string, int>;
 using STLMapStr = std::unordered_map<std::string, int>;
 
-#define test_find(map, size)                             \
-    BENCHMARK(BM_find<map, size, FindSpec::AlwaysHit>);  \
-    BENCHMARK(BM_find<map, size, FindSpec::AlwaysMiss>); \
-    BENCHMARK(BM_find<map, size, FindSpec::Fifty_Fifty>);
+#define test_find(map, size)                            \
+    BENCHMARK(BM_find<map, size, HitRate::AlwaysHit>);  \
+    BENCHMARK(BM_find<map, size, HitRate::AlwaysMiss>); \
+    BENCHMARK(BM_find<map, size, HitRate::Fifty_Fifty>);
 
 #define test_find_across_size(map) \
     test_find(map, 1024);          \
@@ -126,10 +126,10 @@ using STLMapStr = std::unordered_map<std::string, int>;
     test_find(map, 1048576);       \
     test_find(map, 33554432)
 
-#define test_find_str(map, size)                                \
-    BENCHMARK(BM_find_string<map, size, FindSpec::AlwaysHit>);  \
-    BENCHMARK(BM_find_string<map, size, FindSpec::AlwaysMiss>); \
-    BENCHMARK(BM_find_string<map, size, FindSpec::Fifty_Fifty>);
+#define test_find_str(map, size)                               \
+    BENCHMARK(BM_find_string<map, size, HitRate::AlwaysHit>);  \
+    BENCHMARK(BM_find_string<map, size, HitRate::AlwaysMiss>); \
+    BENCHMARK(BM_find_string<map, size, HitRate::Fifty_Fifty>);
 
 test_find_across_size(MyMap);
 test_find_across_size(MyMapSTLAlloc);
